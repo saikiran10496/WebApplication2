@@ -1,9 +1,12 @@
-name: Deploy WebApplication1 to Azure Web App
+name: Deploy WebApplication2 to Azure Web App
 
 on:
   push:
     branches:
       - main
+    paths:
+      - 'WebApplication2/**'
+      - '.github/workflows/deploy-webapp.yml'
 
 jobs:
   build:
@@ -20,14 +23,22 @@ jobs:
       - name: Publish WebApplication2
         run: dotnet publish WebApplication2/WebApplication2.csproj -c Release -o ${{ github.workspace }}/deploy/WebApplication2
 
-      # Create a temporary directory structure matching the target
+      # Create the correct directory structure without extra wwwroot
       - name: Create Directory Structure
         run: |
           mkdir -p ${{ github.workspace }}/deploy/temp/WebApplication2
           Move-Item -Path ${{ github.workspace }}/deploy/WebApplication2/* -Destination ${{ github.workspace }}/deploy/temp/WebApplication2/
 
+      # Add deployment script
+      - name: Create Deploy Script
+        shell: cmd
+        run: |
+          echo @echo off > ${{ github.workspace }}/deploy/temp/deploy.cmd
+          echo if not exist "%%DEPLOYMENT_TARGET%%\WebApplication2" mkdir "%%DEPLOYMENT_TARGET%%\WebApplication2" >> ${{ github.workspace }}/deploy/temp/deploy.cmd
+          echo xcopy /Y /E /I "%%DEPLOYMENT_SOURCE%%\WebApplication2\*" "%%DEPLOYMENT_TARGET%%\WebApplication2\" >> ${{ github.workspace }}/deploy/temp/deploy.cmd
+
       - name: Create ZIP Package
-        run: Compress-Archive -Path ${{ github.workspace }}/deploy/temp/* -DestinationPath ${{ github.workspace }}/WebApplication2.zip
+        run: Compress-Archive -Path "${{ github.workspace }}/deploy/temp/*" -DestinationPath "${{ github.workspace }}/WebApplication2.zip"
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
@@ -56,6 +67,4 @@ jobs:
         with:
           app-name: 'Git-webapp'
           package: ${{ github.workspace }}/WebApplication2.zip
-          # Add these parameters to preserve existing files
-          clean: false
-          remove-additional-files: false
+          #slot-name: 'production'
