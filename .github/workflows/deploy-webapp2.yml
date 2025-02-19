@@ -24,15 +24,14 @@ jobs:
 
       - name: Prepare Directory Structure
         run: |
-          # Create the correct virtual application structure
           $deployPath = "${{ github.workspace }}/deploy/WebApplication2"
           New-Item -ItemType Directory -Path $deployPath -Force
-          
-          # Move all published files to the virtual application directory
-          Get-ChildItem -Path "${{ github.workspace }}/published" | Copy-Item -Destination $deployPath -Recurse -Force
+          Copy-Item -Path "${{ github.workspace }}/published/*" -Destination $deployPath -Recurse -Force
+          Get-ChildItem -Path $deployPath -Recurse | Format-Table -Property FullName, Length
 
       - name: Create ZIP Package
         run: Compress-Archive -Path "${{ github.workspace }}/deploy/*" -DestinationPath "${{ github.workspace }}/WebApplication2.zip"
+        shell: pwsh
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
@@ -44,8 +43,6 @@ jobs:
     name: Deploy to Azure Web App
     runs-on: windows-latest
     needs: build
-    environment:
-      name: Production
     steps:
       - name: Download Artifact
         uses: actions/download-artifact@v4
@@ -59,8 +56,7 @@ jobs:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       - name: Deploy to Azure Web App
-        uses: azure/webapps-deploy@v2
+        uses: azure/webapps-deploy@v3
         with:
           app-name: 'Git-webapp'
-          virtual-application: 'WebApplication2'
           package: ${{ github.workspace }}/WebApplication2.zip
