@@ -4,10 +4,6 @@ on:
   push:
     branches:
       - main
-    paths:
-      - 'WebApplication2/**'
-      - '.github/workflows/deploy-webapp2.yml'
-
 jobs:
   build:
     runs-on: windows-latest
