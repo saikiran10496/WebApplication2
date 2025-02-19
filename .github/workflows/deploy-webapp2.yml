@@ -32,7 +32,7 @@ jobs:
           command=deploy.cmd
           "@
 
-      # Create improved deployment script with retry logic
+      # Create deployment script with fixed syntax
       - name: Create Deploy Script
         shell: cmd
         run: |
@@ -40,51 +40,31 @@ jobs:
           echo setlocal enabledelayedexpansion >> ${{ github.workspace }}/deploy/temp/deploy.cmd
           echo. >> ${{ github.workspace }}/deploy/temp/deploy.cmd
           
-          echo :retry >> ${{ github.workspace }}/deploy/temp/deploy.cmd
-          echo set retryCount=0 >> ${{ github.workspace }}/deploy/temp/deploy.cmd
-          echo set maxRetries=3 >> ${{ github.workspace }}/deploy/temp/deploy.cmd
+          echo echo Starting deployment... >> ${{ github.workspace }}/deploy/temp/deploy.cmd
           echo. >> ${{ github.workspace }}/deploy/temp/deploy.cmd
           
-          echo :attempt >> ${{ github.workspace }}/deploy/temp/deploy.cmd
-          echo echo Attempt !retryCount! of !maxRetries! >> ${{ github.workspace }}/deploy/temp/deploy.cmd
-          echo. >> ${{ github.workspace }}/deploy/temp/deploy.cmd
-          
-          echo echo Stopping the site temporarily... >> ${{ github.workspace }}/deploy/temp/deploy.cmd
-          echo echo ^<!-- Maintenance mode --^> > "%%DEPLOYMENT_TARGET%%\app_offline.htm" >> ${{ github.workspace }}/deploy/temp/deploy.cmd
-          echo timeout /t 10 /nobreak > nul >> ${{ github.workspace }}/deploy/temp/deploy.cmd
-          echo. >> ${{ github.workspace }}/deploy/temp/deploy.cmd
-          
-          echo echo Creating WebApplication2 directory if it doesn't exist... >> ${{ github.workspace }}/deploy/temp/deploy.cmd
-          echo if not exist "%%DEPLOYMENT_TARGET%%\WebApplication2" mkdir "%%DEPLOYMENT_TARGET%%\WebApplication2" >> ${{ github.workspace }}/deploy/temp/deploy.cmd
+          echo if not exist "%%DEPLOYMENT_TARGET%%\WebApplication2" ( >> ${{ github.workspace }}/deploy/temp/deploy.cmd
+          echo   echo Creating WebApplication2 directory... >> ${{ github.workspace }}/deploy/temp/deploy.cmd
+          echo   mkdir "%%DEPLOYMENT_TARGET%%\WebApplication2" >> ${{ github.workspace }}/deploy/temp/deploy.cmd
+          echo ) >> ${{ github.workspace }}/deploy/temp/deploy.cmd
           echo. >> ${{ github.workspace }}/deploy/temp/deploy.cmd
           
           echo echo Copying files to WebApplication2 directory... >> ${{ github.workspace }}/deploy/temp/deploy.cmd
           echo xcopy /Y /E /I "%%DEPLOYMENT_SOURCE%%\site\wwwroot\WebApplication2" "%%DEPLOYMENT_TARGET%%\WebApplication2\" >> ${{ github.workspace }}/deploy/temp/deploy.cmd
-          echo set copyResult=%%ERRORLEVEL%% >> ${{ github.workspace }}/deploy/temp/deploy.cmd
+          echo if errorlevel 1 goto error >> ${{ github.workspace }}/deploy/temp/deploy.cmd
           echo. >> ${{ github.workspace }}/deploy/temp/deploy.cmd
           
-          echo if %%copyResult%% EQU 0 ( >> ${{ github.workspace }}/deploy/temp/deploy.cmd
-          echo   echo Deployment Successful. >> ${{ github.workspace }}/deploy/temp/deploy.cmd
-          echo   del "%%DEPLOYMENT_TARGET%%\app_offline.htm" >> ${{ github.workspace }}/deploy/temp/deploy.cmd
-          echo   goto success >> ${{ github.workspace }}/deploy/temp/deploy.cmd
-          echo ) >> ${{ github.workspace }}/deploy/temp/deploy.cmd
+          echo echo Deployment Successful. >> ${{ github.workspace }}/deploy/temp/deploy.cmd
+          echo goto end >> ${{ github.workspace }}/deploy/temp/deploy.cmd
           echo. >> ${{ github.workspace }}/deploy/temp/deploy.cmd
           
-          echo set /a retryCount+=1 >> ${{ github.workspace }}/deploy/temp/deploy.cmd
-          echo if !retryCount! lss !maxRetries! ( >> ${{ github.workspace }}/deploy/temp/deploy.cmd
-          echo   echo Deployment failed. Retrying in 30 seconds... >> ${{ github.workspace }}/deploy/temp/deploy.cmd
-          echo   timeout /t 30 /nobreak > nul >> ${{ github.workspace }}/deploy/temp/deploy.cmd
-          echo   goto attempt >> ${{ github.workspace }}/deploy/temp/deploy.cmd
-          echo ) >> ${{ github.workspace }}/deploy/temp/deploy.cmd
-          echo. >> ${{ github.workspace }}/deploy/temp/deploy.cmd
-          
-          echo echo Maximum retry attempts reached. Deployment failed. >> ${{ github.workspace }}/deploy/temp/deploy.cmd
-          echo del "%%DEPLOYMENT_TARGET%%\app_offline.htm" >> ${{ github.workspace }}/deploy/temp/deploy.cmd
+          echo :error >> ${{ github.workspace }}/deploy/temp/deploy.cmd
+          echo echo An error occurred during deployment. >> ${{ github.workspace }}/deploy/temp/deploy.cmd
           echo exit /b 1 >> ${{ github.workspace }}/deploy/temp/deploy.cmd
           echo. >> ${{ github.workspace }}/deploy/temp/deploy.cmd
           
-          echo :success >> ${{ github.workspace }}/deploy/temp/deploy.cmd
-          echo echo Deployment completed successfully. >> ${{ github.workspace }}/deploy/temp/deploy.cmd
+          echo :end >> ${{ github.workspace }}/deploy/temp/deploy.cmd
+          echo echo Deployment finished. >> ${{ github.workspace }}/deploy/temp/deploy.cmd
           echo exit /b 0 >> ${{ github.workspace }}/deploy/temp/deploy.cmd
 
       - name: Create ZIP Package
@@ -117,3 +97,4 @@ jobs:
         with:
           app-name: 'Git-webapp'
           package: ${{ github.workspace }}/WebApplication2.zip
+          slot-name: 'production'
