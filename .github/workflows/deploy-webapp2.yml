@@ -17,55 +17,23 @@ jobs:
         with:
           dotnet-version: '6.0.x'
 
+      - name: Create deployment structure
+        run: |
+          mkdir -p "${{ github.workspace }}/deploy/site/wwwroot"
+          mkdir -p "${{ github.workspace }}/deploy/site/wwwroot/WebApplication2"
+
       - name: Publish WebApplication2
-        run: dotnet publish WebApplication2/WebApplication2.csproj -c Release -o ${{ github.workspace }}/deploy/temp/site/wwwroot/WebApplication2
-
-      # Create .deployment file
-      - name: Create .deployment file
         run: |
-          Set-Content -Path "${{ github.workspace }}/deploy/temp/.deployment" -Value @"
-          [config]
-          SCM_TOUCH_WEBCONFIG_AFTER_DEPLOYMENT=0
-          command=deploy.cmd
-          "@
+          dotnet publish WebApplication2/WebApplication2.csproj -c Release -o "${{ github.workspace }}/deploy/site/wwwroot/WebApplication2"
 
-      # Create deployment script with fixed syntax
-      - name: Create Deploy Script
-        shell: cmd
+      - name: Copy web.config
         run: |
-          echo @echo off > ${{ github.workspace }}/deploy/temp/deploy.cmd
-          echo setlocal enabledelayedexpansion >> ${{ github.workspace }}/deploy/temp/deploy.cmd
-          echo. >> ${{ github.workspace }}/deploy/temp/deploy.cmd
-          
-          echo echo Starting deployment... >> ${{ github.workspace }}/deploy/temp/deploy.cmd
-          echo. >> ${{ github.workspace }}/deploy/temp/deploy.cmd
-          
-          echo if not exist "%%DEPLOYMENT_TARGET%%\WebApplication2" ( >> ${{ github.workspace }}/deploy/temp/deploy.cmd
-          echo   echo Creating WebApplication2 directory... >> ${{ github.workspace }}/deploy/temp/deploy.cmd
-          echo   mkdir "%%DEPLOYMENT_TARGET%%\WebApplication2" >> ${{ github.workspace }}/deploy/temp/deploy.cmd
-          echo ) >> ${{ github.workspace }}/deploy/temp/deploy.cmd
-          echo. >> ${{ github.workspace }}/deploy/temp/deploy.cmd
-          
-          echo echo Copying files to WebApplication2 directory... >> ${{ github.workspace }}/deploy/temp/deploy.cmd
-          echo xcopy /Y /E /I "%%DEPLOYMENT_SOURCE%%\site\wwwroot\WebApplication2" "%%DEPLOYMENT_TARGET%%\WebApplication2\" >> ${{ github.workspace }}/deploy/temp/deploy.cmd
-          echo if errorlevel 1 goto error >> ${{ github.workspace }}/deploy/temp/deploy.cmd
-          echo. >> ${{ github.workspace }}/deploy/temp/deploy.cmd
-          
-          echo echo Deployment Successful. >> ${{ github.workspace }}/deploy/temp/deploy.cmd
-          echo goto end >> ${{ github.workspace }}/deploy/temp/deploy.cmd
-          echo. >> ${{ github.workspace }}/deploy/temp/deploy.cmd
-          
-          echo :error >> ${{ github.workspace }}/deploy/temp/deploy.cmd
-          echo echo An error occurred during deployment. >> ${{ github.workspace }}/deploy/temp/deploy.cmd
-          echo exit /b 1 >> ${{ github.workspace }}/deploy/temp/deploy.cmd
-          echo. >> ${{ github.workspace }}/deploy/temp/deploy.cmd
-          
-          echo :end >> ${{ github.workspace }}/deploy/temp/deploy.cmd
-          echo echo Deployment finished. >> ${{ github.workspace }}/deploy/temp/deploy.cmd
-          echo exit /b 0 >> ${{ github.workspace }}/deploy/temp/deploy.cmd
+          Copy-Item "web.config" -Destination "${{ github.workspace }}/deploy/site/wwwroot/WebApplication2/web.config" -Force
 
       - name: Create ZIP Package
-        run: Compress-Archive -Path "${{ github.workspace }}/deploy/temp/*" -DestinationPath "${{ github.workspace }}/WebApplication2.zip"
+        run: |
+          cd "${{ github.workspace }}/deploy"
+          Compress-Archive -Path "site/wwwroot/*" -DestinationPath "${{ github.workspace }}/WebApplication2.zip" -Force
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
@@ -94,4 +62,3 @@ jobs:
         with:
           app-name: 'Git-webapp'
           package: ${{ github.workspace }}/WebApplication2.zip
-          slot-name: 'production'
