@@ -30,6 +30,8 @@ jobs:
           [config]
           SCM_DO_BUILD_DURING_DEPLOYMENT=true
           WEBSITE_RUN_FROM_PACKAGE=0
+          SCM_SKIP_EXISTING_FILES=true
+          KUDU_SYNC_SKIP=WebApplication1
           "@
           
       - name: Create ZIP Package
@@ -62,4 +64,3 @@ jobs:
         with:
           app-name: 'Git-webapp'
           package: ${{ github.workspace }}/WebApplication2.zip
-          exclude: 'WebApplication1/**'
