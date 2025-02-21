@@ -1,0 +1,68 @@
+name: Deploy WebApplication2 to Azure Web App
+on:
+  push:
+    branches:
+      - main
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+      
+      - name: Setup .NET 6
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '6.0.x'
+      
+      - name: Create Deployment Directory
+        run: |
+          mkdir "${{ github.workspace }}/deploy/temp/site/wwwroot/WebApplication2"
+      
+      - name: Publish WebApplication2
+        run: dotnet publish WebApplication2/WebApplication2.csproj -c Release -o ${{ github.workspace }}/deploy/temp/site/wwwroot/WebApplication2
+      
+      # Copy existing deployment files from repository
+      - name: Copy Deployment Files
+        run: |
+          Copy-Item ".deployment" -Destination "${{ github.workspace }}/deploy/temp/.deployment"
+          Copy-Item "deploy.cmd" -Destination "${{ github.workspace }}/deploy/temp/deploy.cmd"
+      
+      - name: Create ZIP Package
+        run: Compress-Archive -Path "${{ github.workspace }}/deploy/temp/*" -DestinationPath "${{ github.workspace }}/WebApplication2.zip"
+      
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: WebApplication2
+          path: ${{ github.workspace }}/WebApplication2.zip
+  
+  deploy:
+    name: Deploy to Azure Web App
+    runs-on: windows-latest
+    needs: build
+    steps:
+      - name: Download Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: WebApplication2
+          path: ${{ github.workspace }}
+      
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          
+      - name: Stop Azure Web App
+        run: az webapp stop --name Git-webapp --resource-group Git-grp
+        continue-on-error: true
+      
+      - name: Deploy WebApplication2 to Azure Web App
+        uses: azure/webapps-deploy@v2
+        with:
+          app-name: 'Git-webapp'
+          package: ${{ github.workspace }}/WebApplication2.zip
+          slot-name: 'production'
+      
+      - name: Start Azure Web App
+        run: az webapp start --name Git-webapp --resource-group Git-grp
